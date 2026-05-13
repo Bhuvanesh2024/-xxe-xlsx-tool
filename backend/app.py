@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 PROCESSED_DIR = os.environ.get('PROCESSED_DIR', os.path.join(os.path.dirname(__file__), 'processed'))
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '../frontend/build'), static_url_path='')
-CORS(app)
+CORS(app, origins='*')
 
 xxe_gen = XXEGenerator()
 xlsx_proc = XLSXProcessor(PROCESSED_DIR)

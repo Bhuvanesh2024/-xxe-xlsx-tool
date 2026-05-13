@@ -47,10 +47,15 @@ class XXEGenerator:
         }
     
     def generate_payloads(self, target_url="", collaborator="", attack_type="all"):
-        # Input validation
         valid_types = ['all', 'doctype', 'xinclude', 'dtd', 'svg']
         if attack_type not in valid_types:
-            raise ValueError(f"Invalid attack_type '{attack_type}'. Must be one of: {valid_types}")
+            attack_type = 'all'
+        
+        # Set defaults if empty
+        if not target_url:
+            target_url = 'file:///etc/passwd'
+        if not collaborator:
+            collaborator = 'http://your-collaborator.com'
         
         payloads = []
         
