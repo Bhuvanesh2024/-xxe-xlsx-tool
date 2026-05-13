@@ -8,8 +8,10 @@ import logging
 from werkzeug.utils import secure_filename
 
 class XLSXProcessor:
-    def __init__(self):
+    def __init__(self, processed_dir='processed'):
         self.temp_dir = tempfile.gettempdir()
+        self.processed_dir = processed_dir
+        os.makedirs(self.processed_dir, exist_ok=True)
     
     def inject_xxe(self, input_path, payload_type, payload, collaborator=""):
         # Validate input path
@@ -23,8 +25,8 @@ class XLSXProcessor:
             output_filename = f"xxe_{timestamp}_{original_name}"
             
             # Ensure output directory exists
-            os.makedirs('processed', exist_ok=True)
-            output_path = os.path.join('processed', output_filename)
+            os.makedirs(self.processed_dir, exist_ok=True)
+            output_path = os.path.join(self.processed_dir, output_filename)
             
             # Create a temporary working directory
             temp_work_dir = os.path.join(self.temp_dir, f"xxe_{uuid.uuid4().hex[:8]}")
