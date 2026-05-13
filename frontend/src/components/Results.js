@@ -43,6 +43,29 @@ const Results = ({ payloads, fileInfo, actualFile, onBack, onReset }) => {
 
   const copy = (text) => navigator.clipboard.writeText(text);
   const download = (fn) => window.open(`${API_BASE_URL}/api/download/${fn}`, "_blank");
+  const downloadText = (filename, text, mimeType = "text/plain") => {
+    const blob = new Blob([text], { type: mimeType });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+  };
+  const downloadPayload = (payload, index) => {
+    const safeName = (payload.name || `payload-${index + 1}`).replace(/[^a-z0-9-_]+/gi, "-").toLowerCase();
+    downloadText(`${safeName}.xml`, payload.payload, "application/xml");
+  };
+  const downloadAllPayloads = () => {
+    downloadText("xxe-payloads.json", JSON.stringify(payloads, null, 2), "application/json");
+  };
+  const downloadInjectedFile = () => {
+    if (result?.success && result?.output_filename) {
+      download(result.output_filename);
+    }
+  };
 
   return (
     <div className="glass rounded-3xl p-8 shadow-2xl border border-white/20">
@@ -59,10 +82,16 @@ const Results = ({ payloads, fileInfo, actualFile, onBack, onReset }) => {
             <p className="text-gray-300">{payloads.length} payloads ready for {fileInfo?.name}</p>
           </div>
         </div>
-        <button onClick={onReset}
-          className="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2 rounded-xl transition-colors">
-          🔄 Start Over
-        </button>
+        <div className="flex items-center space-x-3">
+          <button onClick={downloadAllPayloads}
+            className="bg-green-700 hover:bg-green-600 text-white px-5 py-2 rounded-xl transition-colors">
+            💾 Download Payloads
+          </button>
+          <button onClick={onReset}
+            className="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2 rounded-xl transition-colors">
+            🔄 Start Over
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -99,6 +128,10 @@ const Results = ({ payloads, fileInfo, actualFile, onBack, onReset }) => {
                     <button onClick={() => copy(p.payload)} title="Copy"
                       className="text-green-400 hover:text-green-300 p-2 hover:bg-green-500/10 rounded-lg transition-colors">
                       📋
+                    </button>
+                    <button onClick={() => downloadPayload(p, i)} title="Download"
+                      className="text-blue-400 hover:text-blue-300 p-2 hover:bg-blue-500/10 rounded-lg transition-colors">
+                      ⬇
                     </button>
                     <button onClick={() => setSelected(selected === i ? null : i)}
                       className="text-gray-400 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
@@ -170,7 +203,7 @@ const Results = ({ payloads, fileInfo, actualFile, onBack, onReset }) => {
                 <div className="mt-6 space-y-4">
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 flex items-center justify-between">
                     <span className="text-gray-300 font-medium">📁 {result.output_filename}</span>
-                    <button onClick={() => download(result.output_filename)}
+                    <button onClick={downloadInjectedFile}
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
                       💾 Download
                     </button>

