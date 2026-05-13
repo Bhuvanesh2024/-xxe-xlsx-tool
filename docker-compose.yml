@@ -1,0 +1,21 @@
+services:
+  xxe-xlsx-tool:
+    image: bhuvanesh3602/xxe-xlsx-tool:latest
+    build: .
+    ports:
+      - "80:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+    volumes:
+      - processed_data:/app/processed
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  processed_data:
