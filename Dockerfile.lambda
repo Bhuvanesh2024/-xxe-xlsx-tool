@@ -1,0 +1,18 @@
+# AWS Lambda Container Image
+FROM public.ecr.aws/lambda/python:3.11
+
+# Install dependencies
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code
+COPY backend/app.py ./
+COPY backend/lambda_handler.py ./
+COPY backend/xxe_generator.py ./
+COPY backend/xlsx_processor.py ./
+
+# Create temp directories
+RUN mkdir -p /tmp/processed /tmp/uploads
+
+# Lambda handler
+CMD ["lambda_handler.handler"]

@@ -227,8 +227,8 @@ def download_file(filename):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Create processed directory if it doesn't exist
-    os.makedirs('processed', exist_ok=True)
+    # Use /tmp for Lambda, local processed/ otherwise
+    os.makedirs(os.environ.get('PROCESSED_DIR', 'processed'), exist_ok=True)
     
     port = int(os.environ.get('PORT', 5000))
     
