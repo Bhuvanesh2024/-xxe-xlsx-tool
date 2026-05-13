@@ -1,16 +1,17 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: xxe-backend
     ports:
       - "8000:8000"
     environment:
       - PORT=8000
-      - FLASK_ENV=production
       - PROCESSED_DIR=/app/processed
     volumes:
       - processed_data:/app/processed
-    restart: always
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
@@ -20,14 +21,16 @@ services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
       args:
         - REACT_APP_API_URL=
     container_name: xxe-frontend
     ports:
       - "80:80"
     depends_on:
-      - backend
-    restart: always
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   processed_data:
